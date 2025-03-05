@@ -25,7 +25,8 @@ public class CicsService {
             jg = new JavaGateway(CICS_HOST, CICS_PORT);
             byte[] commarea = new byte[103];
             System.arraycopy(operation.getBytes(EBCDIC), 0, commarea, 0, 1);
-            System.arraycopy(key.getBytes(EBCDIC), 0, commarea, 1, Math.min(10, key.length()));
+            byte[] keyBytes = key.getBytes(EBCDIC);
+            System.arraycopy(keyBytes, 0, commarea, 1, Math.min(keyBytes.length, 10));
             if (operation.equals("2")) {
                 System.arraycopy(pass.getBytes(EBCDIC), 0, commarea, 11, 10);
                 System.arraycopy(role.getBytes(EBCDIC), 0, commarea, 21, 10);
@@ -61,16 +62,19 @@ public class CicsService {
     public List<String> browseAllRecords() throws Exception {
         logger.info("Starting browseAllRecords");
         List<String> records = new ArrayList<>();
-        String nextKey = "          "; // Начало с пробелов
-        JavaGateway jg = null;
-        int maxIterations = 100; // Ограничение на случай ошибки
+        String currentKey = "          "; // Начало с пробелов
+        int iteration = 0;
 
+        JavaGateway jg = new JavaGateway(CICS_HOST, CICS_PORT);
         try {
-            jg = new JavaGateway(CICS_HOST, CICS_PORT);
-            for (int i = 0; i < maxIterations && !nextKey.trim().equals("END"); i++) {
+            while (iteration < 10) { // Ограничение для безопасности
+                iteration++;
                 byte[] commarea = new byte[103];
                 System.arraycopy("4".getBytes(EBCDIC), 0, commarea, 0, 1);
-                System.arraycopy(nextKey.getBytes(EBCDIC), 0, commarea, 1, 10);
+                byte[] keyBytes = currentKey.getBytes(EBCDIC);
+                System.arraycopy(keyBytes, 0, commarea, 1, Math.min(keyBytes.length, 10));
+
+                logger.info("Iteration {}: Sending BROWSE request with COMM-KEY-IN: '{}'", iteration, currentKey);
 
                 ECIRequest eci = new ECIRequest(
                     ECIRequest.ECI_SYNC,
@@ -81,19 +85,28 @@ public class CicsService {
                     null,
                     commarea
                 );
-                logger.info("Sending BROWSE request with key: {}", nextKey);
                 jg.flow(eci);
 
                 if (eci.getRc() == 0 && eci.Commarea != null) {
                     String respCode = new String(eci.Commarea, 31, 2, EBCDIC).trim();
-                    logger.info("BROWSE response code: {}", respCode);
+                    String record = new String(eci.Commarea, 33, 30, EBCDIC).trim();
+                    String nextKey = new String(eci.Commarea, 63, 10, EBCDIC).trim();
+
+                    logger.info("Iteration {}: Response code: '{}', Record: '{}', Next key: '{}'", 
+                                iteration, respCode, record, nextKey);
+
                     if (respCode.equals("00")) {
-                        String record = new String(eci.Commarea, 33, 30, EBCDIC).trim();
-                        nextKey = new String(eci.Commarea, 63, 10, EBCDIC).trim();
-                        logger.info("Record: {}, Next key: {}", record, nextKey);
                         if (!record.equals("NO RECORDS FOUND")) {
                             records.add(record);
                         }
+                        if (nextKey.equals("END")) {
+                            logger.info("Reached END of records");
+                            break;
+                        } else if (nextKey.equals(currentKey)) {
+                            logger.warn("Next key '{}' matches current key '{}', forcing END", nextKey, currentKey);
+                            break;
+                        }
+                        currentKey = String.format("%-10s", nextKey); // Убедимся, что ключ всегда 10 байт
                     } else {
                         logger.error("BROWSE failed with response code: {}", respCode);
                         records.add("Error: Response code " + respCode);
@@ -110,6 +123,7 @@ public class CicsService {
         } finally {
             if (jg != null) {
                 jg.close();
+                logger.info("JavaGateway closed");
             }
         }
     }
