@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>CICS VSAM Operations</title>
+    <style>
+        button { margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>CICS VSAM Operations</h1>
+    <form th:action="@{/read}" method="post">
+        <label>Key (max 10 chars):</label>
+        <input type="text" name="key" value="TESTKEY002" />
+        <button type="submit">Read</button>
+    </form>
+    <form th:action="@{/write}" method="post">
+        <label>Key (max 10 chars):</label>
+        <input type="text" name="key" value="NEWKEY002" /><br/>
+        <label>Pass (max 10 chars):</label>
+        <input type="text" name="pass" value="NEWPASS" /><br/>
+        <label>Role (max 10 chars):</label>
+        <input type="text" name="role" value="NEWROLE" />
+        <button type="submit">Write</button>
+    </form>
+    <form th:action="@{/delete}" method="post">
+        <label>Key (max 10 chars):</label>
+        <input type="text" name="key" value="TESTKEY002" />
+        <button type="submit">Delete</button>
+    </form>
+    <form th:action="@{/browse}" method="post">
+        <button type="submit">Browse All Records</button>
+    </form>
+    <h2>Result:</h2>
+    <p th:text="${result}"></p>
+</body>
+</html>
