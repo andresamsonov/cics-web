@@ -23,7 +23,7 @@ public class CicsService {
         JavaGateway jg = null;
         try {
             jg = new JavaGateway(CICS_HOST, CICS_PORT);
-            byte[] commarea = new byte[103];
+            byte[] commarea = new byte[337];
             System.arraycopy(operation.getBytes(EBCDIC), 0, commarea, 0, 1);
             byte[] keyBytes = key.getBytes(EBCDIC);
             System.arraycopy(keyBytes, 0, commarea, 1, Math.min(keyBytes.length, 10));
@@ -45,9 +45,37 @@ public class CicsService {
 
             if (eci.getRc() == 0 && eci.Commarea != null) {
                 String respCode = new String(eci.Commarea, 31, 2, EBCDIC).trim();
-                String dataOut = new String(eci.Commarea, 33, 70, EBCDIC).trim();
-                logger.info("Operation {} succeeded: Response code: {}, Data: {}", operation, respCode, dataOut);
-                return "Response code: " + respCode + ", Data: " + dataOut;
+                if (operation.equals("4")) {
+                    int recordCount = ((eci.Commarea[33] & 0xFF) << 8) + (eci.Commarea[34] & 0xFF);
+                    recordCount = Math.min(recordCount, 10);
+                    logger.info("Record count from CICS: {}", recordCount);
+
+                    List<String> records = new ArrayList<>();
+                    int recordsStart = 35;
+                    for (int i = 0; i < recordCount; i++) {
+                        int offset = recordsStart + (i * 30);
+                        if (offset + 30 <= commarea.length) {
+                            String recordKey = new String(eci.Commarea, offset, 10, EBCDIC);
+                            String recordPass = new String(eci.Commarea, offset + 10, 10, EBCDIC);
+                            String recordRole = new String(eci.Commarea, offset + 20, 10, EBCDIC);
+                            logger.info("Raw record {}: key='{}', pass='{}', role='{}'", i + 1, recordKey, recordPass, recordRole);
+                            String record = (recordKey + recordPass + recordRole).trim();
+                            if (!record.isEmpty()) {
+                                records.add(record);
+                            }
+                        } else {
+                            logger.error("Offset {} exceeds commarea length {}", offset, commarea.length);
+                            break;
+                        }
+                    }
+                    String result = "Response code: " + respCode + ", Records: " + String.join(" | ", records);
+                    logger.info("Browse succeeded: {}", result);
+                    return result;
+                } else {
+                    String dataOut = new String(eci.Commarea, 35, 300, EBCDIC).trim();
+                    logger.info("Operation {} succeeded: Response code: {}, Data: {}", operation, respCode, dataOut);
+                    return "Response code: " + respCode + ", Data: " + dataOut;
+                }
             } else {
                 logger.error("Operation {} failed with return code: {}", operation, eci.getRc());
                 return "Failed with return code: " + eci.getRc();
@@ -60,71 +88,11 @@ public class CicsService {
     }
 
     public List<String> browseAllRecords() throws Exception {
-        logger.info("Starting browseAllRecords");
-        List<String> records = new ArrayList<>();
-        String currentKey = "          "; // Начало с пробелов
-        int iteration = 0;
-
-        JavaGateway jg = new JavaGateway(CICS_HOST, CICS_PORT);
-        try {
-            while (iteration < 10) { // Ограничение для безопасности
-                iteration++;
-                byte[] commarea = new byte[103];
-                System.arraycopy("4".getBytes(EBCDIC), 0, commarea, 0, 1);
-                byte[] keyBytes = currentKey.getBytes(EBCDIC);
-                System.arraycopy(keyBytes, 0, commarea, 1, Math.min(keyBytes.length, 10));
-
-                logger.info("Iteration {}: Sending BROWSE request with COMM-KEY-IN: '{}'", iteration, currentKey);
-
-                ECIRequest eci = new ECIRequest(
-                    ECIRequest.ECI_SYNC,
-                    CICS_SERVER,
-                    null,
-                    null,
-                    PROGRAM_NAME,
-                    null,
-                    commarea
-                );
-                jg.flow(eci);
-
-                if (eci.getRc() == 0 && eci.Commarea != null) {
-                    String respCode = new String(eci.Commarea, 31, 2, EBCDIC).trim();
-                    String record = new String(eci.Commarea, 33, 30, EBCDIC).trim();
-                    String nextKey = new String(eci.Commarea, 63, 10, EBCDIC).trim();
-
-                    logger.info("Iteration {}: Response code: '{}', Record: '{}', Next key: '{}'", 
-                                iteration, respCode, record, nextKey);
-
-                    if (respCode.equals("00")) {
-                        if (!record.equals("NO RECORDS FOUND")) {
-                            records.add(record);
-                        }
-                        if (nextKey.equals("END")) {
-                            logger.info("Reached END of records");
-                            break;
-                        } else if (nextKey.equals(currentKey)) {
-                            logger.warn("Next key '{}' matches current key '{}', forcing END", nextKey, currentKey);
-                            break;
-                        }
-                        currentKey = String.format("%-10s", nextKey); // Убедимся, что ключ всегда 10 байт
-                    } else {
-                        logger.error("BROWSE failed with response code: {}", respCode);
-                        records.add("Error: Response code " + respCode);
-                        break;
-                    }
-                } else {
-                    logger.error("BROWSE failed with return code: {}", eci.getRc());
-                    records.add("Failed with return code: " + eci.getRc());
-                    break;
-                }
-            }
-            logger.info("Browse completed with {} records", records.size());
-            return records;
-        } finally {
-            if (jg != null) {
-                jg.close();
-                logger.info("JavaGateway closed");
-            }
+        String result = performOperation("4", "          ", "", "");
+        String[] parts = result.split("Records: ");
+        if (parts.length > 1) {
+            return List.of(parts[1].split(" \\| "));
         }
+        return new ArrayList<>();
     }
 }

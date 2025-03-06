@@ -10,6 +10,8 @@ public class CTest {
     private static final int CICS_PORT = 2006;
     private static final String CICS_SERVER = "CICSTS56";
     private static final String PROGRAM_NAME = "CICSUNI2";
+	private static final String USER_NAME = "SSA";
+	private static final String PASSWORD = "QWERTY15";
     private static final Charset EBCDIC = Charset.forName("CP037");
 
     public static void main(String[] args) {
@@ -35,8 +37,8 @@ public class CTest {
             ECIRequest eci = new ECIRequest(
                 ECIRequest.ECI_SYNC,
                 CICS_SERVER,
-                null,
-                null,
+                USER_NAME,
+                PASSWORD,
                 PROGRAM_NAME,
                 null,
                 commarea

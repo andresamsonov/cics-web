@@ -2,35 +2,88 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>CICS VSAM Operations</title>
+    <!-- Подключаем Bootstrap для стилизации -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        button { margin: 5px; }
+        body {
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .card {
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            word-wrap: break-word;
+        }
+        .btn-custom {
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>CICS VSAM Operations</h1>
-    <form th:action="@{/read}" method="post">
-        <label>Key (max 10 chars):</label>
-        <input type="text" name="key" value="TESTKEY002" />
-        <button type="submit">Read</button>
-    </form>
-    <form th:action="@{/write}" method="post">
-        <label>Key (max 10 chars):</label>
-        <input type="text" name="key" value="NEWKEY002" /><br/>
-        <label>Pass (max 10 chars):</label>
-        <input type="text" name="pass" value="NEWPASS" /><br/>
-        <label>Role (max 10 chars):</label>
-        <input type="text" name="role" value="NEWROLE" />
-        <button type="submit">Write</button>
-    </form>
-    <form th:action="@{/delete}" method="post">
-        <label>Key (max 10 chars):</label>
-        <input type="text" name="key" value="TESTKEY002" />
-        <button type="submit">Delete</button>
-    </form>
-    <form th:action="@{/browse}" method="post">
-        <button type="submit">Browse All Records</button>
-    </form>
-    <h2>Result:</h2>
-    <p th:text="${result}"></p>
+    <div class="container">
+        <div class="card p-4">
+            <h1 class="text-center mb-4">CICS VSAM Operations</h1>
+
+            <!-- Форма для Read -->
+            <form th:action="@{/read}" method="post" class="mb-4">
+                <div class="form-group">
+                    <label for="readKey" class="form-label">Key (max 10 chars):</label>
+                    <input type="text" class="form-control" id="readKey" name="key" value="TESTKEY002" maxlength="10" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-custom">Read</button>
+            </form>
+
+            <!-- Форма для Write -->
+            <form th:action="@{/write}" method="post" class="mb-4">
+                <div class="form-group">
+                    <label for="writeKey" class="form-label">Key (max 10 chars):</label>
+                    <input type="text" class="form-control" id="writeKey" name="key" value="NEWKEY002" maxlength="10" required>
+                </div>
+                <div class="form-group">
+                    <label for="pass" class="form-label">Pass (max 10 chars):</label>
+                    <input type="text" class="form-control" id="pass" name="pass" value="NEWPASS" maxlength="10" required>
+                </div>
+                <div class="form-group">
+                    <label for="role" class="form-label">Role (max 10 chars):</label>
+                    <input type="text" class="form-control" id="role" name="role" value="NEWROLE" maxlength="10" required>
+                </div>
+                <button type="submit" class="btn btn-success btn-custom">Write</button>
+            </form>
+
+            <!-- Форма для Delete -->
+            <form th:action="@{/delete}" method="post" class="mb-4">
+                <div class="form-group">
+                    <label for="deleteKey" class="form-label">Key (max 10 chars):</label>
+                    <input type="text" class="form-control" id="deleteKey" name="key" value="TESTKEY002" maxlength="10" required>
+                </div>
+                <button type="submit" class="btn btn-danger btn-custom">Delete</button>
+            </form>
+
+            <!-- Форма для Browse -->
+            <form th:action="@{/browse}" method="post" class="mb-4">
+                <button type="submit" class="btn btn-info btn-custom">Browse All Records</button>
+            </form>
+
+            <!-- Результат -->
+            <div class="result-box">
+                <h2 class="h5">Result:</h2>
+                <p th:text="${result ?: 'No result yet'}" class="mb-0"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключаем Bootstrap JS для интерактивности -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
